@@ -161,7 +161,7 @@ class _Object:
 
     def _hydrate(self, object_id: str, client: _Client, metadata: Optional[Message]):
         assert isinstance(object_id, str) and self._type_prefix is not None
-        if not object_id.startswith(self._type_prefix):
+        if not object_id.startswith(self._type_prefix + "-"):
             raise ExecutionError(
                 f"Can not hydrate {type(self)}: "
                 f" it has type prefix {self._type_prefix}"
