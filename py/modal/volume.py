@@ -25,7 +25,11 @@ from typing import (
     Union,
 )
 
+from typing import NewType
+
 from google.protobuf.message import Message
+
+VolumePath = NewType("VolumePath", str)
 from synchronicity import classproperty
 from synchronicity.async_wrap import asynccontextmanager
 
@@ -703,7 +707,7 @@ class _Volume(_Object, type_prefix="vo"):
                     yield FileEntry._from_proto(entry)
 
     @live_method
-    async def listdir(self, path: str, *, recursive: bool = False) -> list[FileEntry]:
+    async def listdir(self, path: VolumePath, *, recursive: bool = False) -> list[FileEntry]:
         """List all files under a path prefix in the modal.Volume.
 
         Passing a directory path lists all files in the directory. For a file path, return only that
@@ -714,7 +718,7 @@ class _Volume(_Object, type_prefix="vo"):
         return [entry async for entry in self.iterdir(path, recursive=recursive)]
 
     @live_method_gen
-    async def read_file(self, path: str) -> AsyncGenerator[bytes, None]:
+    async def read_file(self, path: VolumePath) -> AsyncGenerator[bytes, None]:
         """
         Read a file from the modal.Volume.
 
@@ -760,7 +764,7 @@ class _Volume(_Object, type_prefix="vo"):
     @live_method
     async def read_file_into_fileobj(
         self,
-        path: str,
+        path: VolumePath,
         fileobj: typing.IO[bytes],
         progress_cb: Optional[Callable[..., Any]] = None,
     ) -> int:
@@ -839,7 +843,7 @@ class _Volume(_Object, type_prefix="vo"):
         return total_size
 
     @live_method
-    async def remove_file(self, path: str, recursive: bool = False) -> None:
+    async def remove_file(self, path: VolumePath, recursive: bool = False) -> None:
         """Remove a file or directory from a volume."""
         path = PurePosixPath(path).as_posix()
         if self._read_only:
