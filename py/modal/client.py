@@ -271,6 +271,8 @@ class _Client:
         cls._client_from_env = client
 
     async def get_input_plane_metadata(self, input_plane_region: str) -> list[tuple[str, str]]:
+        if self.is_closed():
+            raise ClientClosed(id(self))
         assert self._auth_token_manager, "Client must have an instance of auth token manager."
         token = await self._auth_token_manager.get_token()
         return [
@@ -309,6 +311,8 @@ class _Client:
             return await coro
 
     async def _reset_on_pid_change(self):
+        if self.is_closed():
+            raise ClientClosed(id(self))
         if self._owner_pid and self._owner_pid != os.getpid():
             # not calling .close() since that would also interact with stale resources
             # just reset the internal state
@@ -323,6 +327,8 @@ class _Client:
     async def _get_channel(self, server_url: str) -> grpclib.client.Channel:
         # Get a valid grpclib channel, reusing existing channels if possible.
         # This prevents usage of stale channels across forks of processes.
+        if self.is_closed():
+            raise ClientClosed(id(self))
         await self._reset_on_pid_change()
         assert self._connection_manager  # invariant: ._open() should always have been called before this
         return await self._connection_manager.get_or_create_channel(server_url)
@@ -336,6 +342,8 @@ class _Client:
         timeout: Optional[float] = None,
         metadata: Optional[_MetadataLike] = None,
     ) -> Any:
+        if self.is_closed():
+            raise ClientClosed(id(self))
         coro = grpclib_method(request, timeout=timeout, metadata=metadata)
         return await self._call_safely(coro, grpclib_method.name)
 
@@ -347,6 +355,8 @@ class _Client:
         *,
         metadata: Optional[_MetadataLike],
     ) -> AsyncGenerator[Any, None]:
+        if self.is_closed():
+            raise ClientClosed(id(self))
         stream_context = grpclib_method.open(metadata=metadata)
         stream = await self._call_safely(stream_context.__aenter__(), f"{grpclib_method.name}.open")
         try:
