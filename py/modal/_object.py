@@ -1,11 +1,18 @@
 # Copyright Modal Labs 2022
 import asyncio
 import contextlib
+import enum
 import typing
 import uuid
 from collections.abc import Awaitable, Hashable, Sequence
 from functools import wraps
 from typing import Callable, ClassVar, Optional
+
+
+class HydrationState(enum.Enum):
+    UNHYDRATED = "unhydrated"
+    HYDRATED = "hydrated"
+    REHYDRATED = "rehydrated"
 
 from google.protobuf.message import Message
 from typing_extensions import Self
@@ -172,6 +179,7 @@ class _Object:
         self._initialize_from_empty()
 
     def _unhydrate(self):
+        self._hydration_state = HydrationState.UNHYDRATED
         self._object_id = None
         self._client = None
         self._is_hydrated = False
