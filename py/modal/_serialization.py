@@ -104,10 +104,21 @@ def serialize(obj: Any) -> bytes:
     return buf.getvalue()
 
 
+def _check_protocol_version(data: bytes) -> None:
+    """Verify pickle protocol version matches PICKLE_PROTOCOL before deserializing."""
+    if len(data) >= 2 and data[0] == 0x80:  # PROTO opcode
+        actual = data[1]
+        if actual != PICKLE_PROTOCOL:
+            raise DeserializationError(
+                f"Pickle protocol version mismatch: expected {PICKLE_PROTOCOL}, got {actual}"
+            )
+
+
 def deserialize(s: bytes, client) -> Any:
     """Deserializes object and replaces all client placeholders by self."""
     from ._runtime.execution_context import is_local  # Avoid circular import
 
+    _check_protocol_version(s)
     env = "local" if is_local() else "remote"
     try:
         return Unpickler(client, io.BytesIO(s)).load()
