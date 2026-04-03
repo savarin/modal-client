@@ -29,6 +29,19 @@ HEARTBEAT_INTERVAL: float = config.get("heartbeat_interval")
 HEARTBEAT_TIMEOUT: float = HEARTBEAT_INTERVAL + 0.1
 
 
+def closed_guard(method):
+    """Decorator that raises ClientClosed if the client has been closed."""
+    from functools import wraps
+
+    @wraps(method)
+    async def wrapped(self, *args, **kwargs):
+        if self.is_closed():
+            raise ClientClosed(id(self))
+        return await method(self, *args, **kwargs)
+
+    return wrapped
+
+
 def _get_metadata(client_type: int, credentials: Optional[tuple[str, str]], version: str) -> dict[str, str]:
     # This implements a simplified version of platform.platform() that's still machine-readable
     uname: platform.uname_result = platform.uname()
@@ -324,11 +337,10 @@ class _Client:
             # TODO(elias): reset _cancellation_context in case ?
             await self._open()
 
+    @closed_guard
     async def _get_channel(self, server_url: str) -> grpclib.client.Channel:
         # Get a valid grpclib channel, reusing existing channels if possible.
         # This prevents usage of stale channels across forks of processes.
-        if self.is_closed():
-            raise ClientClosed(id(self))
         await self._reset_on_pid_change()
         assert self._connection_manager  # invariant: ._open() should always have been called before this
         return await self._connection_manager.get_or_create_channel(server_url)
