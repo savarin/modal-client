@@ -155,9 +155,9 @@ class _Object:
 
     def _initialize_from_other(self, other):
         # default implementation, can be overriden in subclasses
-        self._object_id = other._object_id
+        self._object_id = other.object_id
         self._is_hydrated = other._is_hydrated
-        self._client = other._client
+        self._client = other.client
 
     def _hydrate(self, object_id: str, client: _Client, metadata: Optional[Message]):
         assert isinstance(object_id, str) and self._type_prefix is not None
