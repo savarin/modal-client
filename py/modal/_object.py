@@ -358,6 +358,9 @@ class _Object:
                 logger.debug(f"rehydrating {self} after snapshot")
                 if self._hydrate_lazily:
                     logger.debug(f"reloading lazy {self} from server")
+                    # Race condition: concurrent coroutines may see an unhydrated object
+                    # during re-resolution. No lock protects this transition because
+                    # snapshot restore is single-threaded in practice.
                     self._is_hydrated = False  # un-hydrate and re-resolve
                     # we don't set an explicit Client here, relying on the default
                     # env client to be applied by LoadContext.apply_default
