@@ -86,6 +86,7 @@ def live_method_contextmanager(method):
 class _Object:
     _type_prefix: ClassVar[Optional[str]] = None
     _prefix_to_type: ClassVar[dict[str, type]] = {}
+    _registered_prefixes: ClassVar[frozenset[str]] = frozenset()
 
     # For constructors
     _load: Optional[Callable[[Self, Resolver, LoadContext, Optional[str]], Awaitable[None]]] = None
@@ -111,10 +112,11 @@ class _Object:
     def __init_subclass__(cls, type_prefix: Optional[str] = None):
         super().__init_subclass__()
         if type_prefix is not None:
-            if type_prefix in cls._prefix_to_type:
+            if type_prefix in cls._registered_prefixes:
                 raise InvalidError(
                     f"Type prefix '{type_prefix}' already registered by {cls._prefix_to_type[type_prefix].__name__}"
                 )
+            cls._registered_prefixes = frozenset(cls._registered_prefixes | {type_prefix})
             cls._type_prefix = type_prefix
             cls._prefix_to_type[type_prefix] = cls
 
