@@ -710,6 +710,7 @@ class _Volume(_Object, type_prefix="vo"):
         file's description. If `recursive` is set to True, list all files and folders under the path
         recursively.
         """
+        path = PurePosixPath(path).as_posix()
         return [entry async for entry in self.iterdir(path, recursive=recursive)]
 
     @live_method_gen
@@ -731,6 +732,7 @@ class _Volume(_Object, type_prefix="vo"):
         print(len(data))  # == 1024 * 1024
         ```
         """
+        path = PurePosixPath(path).as_posix()
         req = api_pb2.VolumeGetFile2Request(volume_id=self.object_id, path=path)
 
         try:
@@ -765,6 +767,7 @@ class _Volume(_Object, type_prefix="vo"):
         """mdmd:hidden
         Read volume file into file-like IO object.
         """
+        path = PurePosixPath(path).as_posix()
         return await self._read_file_into_fileobj(path, fileobj, progress_cb=progress_cb)
 
     @live_method
@@ -838,6 +841,7 @@ class _Volume(_Object, type_prefix="vo"):
     @live_method
     async def remove_file(self, path: str, recursive: bool = False) -> None:
         """Remove a file or directory from a volume."""
+        path = PurePosixPath(path).as_posix()
         if self._read_only:
             raise InvalidError("Read-only Volume can not be written to")
 
