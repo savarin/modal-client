@@ -147,6 +147,7 @@ class _Object:
         self._object_id = None
         self._client = None
         self._is_hydrated = False
+        self._is_rehydrated = False
 
     def _initialize_from_empty(self):
         # default implementation, can be overriden in subclasses
