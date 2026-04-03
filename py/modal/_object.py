@@ -1,4 +1,5 @@
 # Copyright Modal Labs 2022
+import asyncio
 import contextlib
 import typing
 import uuid
@@ -150,6 +151,7 @@ class _Object:
         self._client = None
         self._is_hydrated = False
         self._is_rehydrated = False
+        self._hydration_lock = asyncio.Lock()
 
         self._name = name
 
@@ -353,26 +355,24 @@ class _Object:
         # TODO: add deprecation for the client argument here - should be added in constructors instead
         if self._is_hydrated:
             if self.client._snapshotted and not self._is_rehydrated:
-                # memory snapshots capture references which must be rehydrated
-                # on restore to handle staleness.
-                logger.debug(f"rehydrating {self} after snapshot")
-                if self._hydrate_lazily:
-                    logger.debug(f"reloading lazy {self} from server")
-                    # Race condition: concurrent coroutines may see an unhydrated object
-                    # during re-resolution. No lock protects this transition because
-                    # snapshot restore is single-threaded in practice.
-                    self._is_hydrated = False  # un-hydrate and re-resolve
-                    # we don't set an explicit Client here, relying on the default
-                    # env client to be applied by LoadContext.apply_default
-                    resolver = Resolver()
-                    async with TaskContext() as tc:
-                        root_load_context = LoadContext(task_context=tc)
-                        await resolver.load(typing.cast(_Object, self), root_load_context)
-                else:
-                    logger.debug(f"reloading non-lazy {self} by replacing client")
-                    self._client = client or await _Client.from_env()
-                self._is_rehydrated = True
-                logger.debug(f"rehydrated {self} with client {id(self.client)}")
+                async with self._hydration_lock:
+                    # memory snapshots capture references which must be rehydrated
+                    # on restore to handle staleness.
+                    logger.debug(f"rehydrating {self} after snapshot")
+                    if self._hydrate_lazily:
+                        logger.debug(f"reloading lazy {self} from server")
+                        self._is_hydrated = False  # un-hydrate and re-resolve
+                        # we don't set an explicit Client here, relying on the default
+                        # env client to be applied by LoadContext.apply_default
+                        resolver = Resolver()
+                        async with TaskContext() as tc:
+                            root_load_context = LoadContext(task_context=tc)
+                            await resolver.load(typing.cast(_Object, self), root_load_context)
+                    else:
+                        logger.debug(f"reloading non-lazy {self} by replacing client")
+                        self._client = client or await _Client.from_env()
+                    self._is_rehydrated = True
+                    logger.debug(f"rehydrated {self} with client {id(self.client)}")
         elif not self._hydrate_lazily:
             self._validate_is_hydrated()
         else:
