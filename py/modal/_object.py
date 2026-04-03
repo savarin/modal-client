@@ -39,6 +39,14 @@ def _get_environment_name(
         return config.get("environment")
 
 
+def _validate_prefix(object_id: str, type_prefix: str) -> None:
+    """Validate that object_id starts with the expected type prefix."""
+    if not object_id.startswith(type_prefix + "-"):
+        raise InvalidError(
+            f"Object {object_id} does not start with expected prefix '{type_prefix}-'"
+        )
+
+
 def live_method(method):
     @wraps(method)
     async def wrapped(self, *args, **kwargs):
@@ -165,14 +173,7 @@ class _Object:
 
     def _hydrate(self, object_id: str, client: _Client, metadata: Optional[Message]):
         assert isinstance(object_id, str) and self._type_prefix is not None
-        if not object_id.startswith(self._type_prefix + "-"):
-            raise ExecutionError(
-                f"Can not hydrate {type(self)}: "
-                f" it has type prefix {self._type_prefix}"
-                f" but the object_id starts with {object_id[:3]}. "
-                "This usually means the object name was previously used for a different type. "
-                "Rename the object/app or stop the previous deployment and redeploy."
-            )
+        _validate_prefix(object_id, self._type_prefix)
         self._object_id = object_id
         self._client = client
         self._hydrate_metadata(metadata)
@@ -280,8 +281,7 @@ class _Object:
         if cls._type_prefix is not None:
             # This is called directly on a subclass, e.g. Secret.from_id
             # validate the id matching the expected id type of the Object subclass
-            if not object_id.startswith(cls._type_prefix + "-"):
-                raise InvalidError(f"Object {object_id} does not start with {cls._type_prefix}")
+            _validate_prefix(object_id, cls._type_prefix)
 
             obj_cls = cls
         else:
