@@ -52,7 +52,31 @@ class grpc_error_converter:
         use_full_traceback = config.get("traceback")
         with suppress_tb_frame():
             if isinstance(exc, GRPCError):
-                exc_cls = _STATUS_TO_EXCEPTION.get(exc.status, WrappedGRPCError)
+                match exc.status:
+                    case Status.CANCELLED | Status.UNKNOWN | Status.DEADLINE_EXCEEDED | Status.UNAVAILABLE:
+                        exc_cls = exception.ServiceError
+                    case Status.INVALID_ARGUMENT | Status.OUT_OF_RANGE:
+                        exc_cls = exception.InvalidError
+                    case Status.NOT_FOUND:
+                        exc_cls = exception.NotFoundError
+                    case Status.ALREADY_EXISTS:
+                        exc_cls = exception.AlreadyExistsError
+                    case Status.PERMISSION_DENIED:
+                        exc_cls = exception.PermissionDeniedError
+                    case Status.RESOURCE_EXHAUSTED:
+                        exc_cls = exception.ResourceExhaustedError
+                    case Status.FAILED_PRECONDITION | Status.ABORTED:
+                        exc_cls = exception.ConflictError
+                    case Status.UNIMPLEMENTED:
+                        exc_cls = exception.UnimplementedError
+                    case Status.INTERNAL:
+                        exc_cls = exception.InternalError
+                    case Status.DATA_LOSS:
+                        exc_cls = exception.DataLossError
+                    case Status.UNAUTHENTICATED:
+                        exc_cls = exception.AuthError
+                    case _:
+                        exc_cls = WrappedGRPCError
                 modal_exc = exc_cls(exc.message)
                 modal_exc._grpc_message = exc.message
                 modal_exc._grpc_status = exc.status
