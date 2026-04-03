@@ -83,6 +83,18 @@ def live_method_contextmanager(method):
     return wrapped
 
 
+class HydratedObject(typing.Protocol):
+    """Protocol for objects that have been hydrated with server metadata."""
+
+    @property
+    def object_id(self) -> str: ...
+
+    @property
+    def client(self) -> _Client: ...
+
+    _is_hydrated: bool
+
+
 class _Object:
     _type_prefix: ClassVar[Optional[str]] = None
     _prefix_to_type: ClassVar[dict[str, type]] = {}
@@ -169,7 +181,7 @@ class _Object:
         # default implementation, can be overriden in subclasses
         pass
 
-    def _initialize_from_other(self, other):
+    def _initialize_from_other(self, other: "HydratedObject"):
         # default implementation, can be overriden in subclasses
         self._object_id = other.object_id
         self._is_hydrated = other._is_hydrated
