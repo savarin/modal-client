@@ -102,6 +102,10 @@ class _Object:
     def __init_subclass__(cls, type_prefix: Optional[str] = None):
         super().__init_subclass__()
         if type_prefix is not None:
+            if type_prefix in cls._prefix_to_type:
+                raise InvalidError(
+                    f"Type prefix '{type_prefix}' already registered by {cls._prefix_to_type[type_prefix].__name__}"
+                )
             cls._type_prefix = type_prefix
             cls._prefix_to_type[type_prefix] = cls
 
