@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -123,6 +124,15 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// ParseServerURL validates that a server URL has a valid scheme (https:// or http://).
+// Returns an error if the scheme is missing or unsupported.
+func ParseServerURL(rawURL string) (string, error) {
+	if strings.HasPrefix(rawURL, "https://") || strings.HasPrefix(rawURL, "http://") {
+		return rawURL, nil
+	}
+	return "", fmt.Errorf("invalid server URL %q: must start with https:// or http://", rawURL)
 }
 
 func environmentName(environment string, profile Profile) string {
