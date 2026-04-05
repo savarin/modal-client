@@ -22,6 +22,31 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// NetworkAccessMode encodes the three mutually exclusive network access states.
+// Using a typed enum prevents combining BlockNetwork=true with a non-empty CIDRAllowlist.
+type NetworkAccessMode int
+
+const (
+	NetworkAccessOpen      NetworkAccessMode = iota // Default: all access allowed
+	NetworkAccessBlocked                            // No network access
+	NetworkAccessAllowlist                          // Only specified CIDRs
+)
+
+// resolveNetworkAccess validates the mutual exclusion between BlockNetwork and CIDRAllowlist,
+// returning the corresponding NetworkAccessMode.
+func resolveNetworkAccess(blockNetwork bool, cidrAllowlist []string) (NetworkAccessMode, error) {
+	if blockNetwork && len(cidrAllowlist) > 0 {
+		return 0, fmt.Errorf("CIDRAllowlist cannot be used when BlockNetwork is enabled")
+	}
+	if blockNetwork {
+		return NetworkAccessBlocked, nil
+	}
+	if len(cidrAllowlist) > 0 {
+		return NetworkAccessAllowlist, nil
+	}
+	return NetworkAccessOpen, nil
+}
+
 // SandboxService provides Sandbox related operations.
 type SandboxService interface {
 	Create(ctx context.Context, app *App, image *Image, params *SandboxCreateParams) (*Sandbox, error)
@@ -158,21 +183,23 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		secretIds = append(secretIds, secret.SecretID)
 	}
 
+	netMode, err := resolveNetworkAccess(params.BlockNetwork, params.CIDRAllowlist)
+	if err != nil {
+		return nil, err
+	}
 	var networkAccess *pb.NetworkAccess
-	if params.BlockNetwork {
-		if len(params.CIDRAllowlist) > 0 {
-			return nil, fmt.Errorf("CIDRAllowlist cannot be used when BlockNetwork is enabled")
-		}
+	switch netMode {
+	case NetworkAccessBlocked:
 		networkAccess = pb.NetworkAccess_builder{
 			NetworkAccessType: pb.NetworkAccess_BLOCKED,
 			AllowedCidrs:      []string{},
 		}.Build()
-	} else if len(params.CIDRAllowlist) > 0 {
+	case NetworkAccessAllowlist:
 		networkAccess = pb.NetworkAccess_builder{
 			NetworkAccessType: pb.NetworkAccess_ALLOWLIST,
 			AllowedCidrs:      params.CIDRAllowlist,
 		}.Build()
-	} else {
+	default:
 		networkAccess = pb.NetworkAccess_builder{
 			NetworkAccessType: pb.NetworkAccess_OPEN,
 			AllowedCidrs:      []string{},
