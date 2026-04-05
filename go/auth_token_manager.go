@@ -107,17 +107,7 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 
 	now := time.Now().Unix()
 	exp := m.decodeJWT(token)
-	var expiry int64
-	if exp <= 0 {
-		m.logger.WarnContext(ctx, "x-modal-auth-token does not contain exp field")
-		expiry = now + DefaultExpiryOffset
-	} else if exp <= now {
-		m.logger.WarnContext(ctx, "x-modal-auth-token has expiry in the past, using default offset",
-			"exp", exp, "now", now)
-		expiry = now + DefaultExpiryOffset
-	} else {
-		expiry = exp
-	}
+	expiry := NewFutureExpiry(exp, now, DefaultExpiryOffset, m.logger, ctx)
 
 	m.tokenAndExpiry.Store(&TokenAndExpiry{
 		token:  token,
@@ -169,6 +159,22 @@ func (m *AuthTokenManager) GetCurrentToken() string {
 // IsExpired checks if the current token is expired.
 func (m *AuthTokenManager) IsExpired() bool {
 	return isExpired(*m.tokenAndExpiry.Load())
+}
+
+// NewFutureExpiry returns a validated expiry timestamp that is guaranteed to be
+// in the future. If the raw expiry is missing or in the past, it falls back to
+// now + defaultOffset.
+func NewFutureExpiry(rawExp int64, now int64, defaultOffset int64, logger *slog.Logger, ctx context.Context) int64 {
+	if rawExp <= 0 {
+		logger.WarnContext(ctx, "x-modal-auth-token does not contain exp field")
+		return now + defaultOffset
+	}
+	if rawExp <= now {
+		logger.WarnContext(ctx, "x-modal-auth-token has expiry in the past, using default offset",
+			"exp", rawExp, "now", now)
+		return now + defaultOffset
+	}
+	return rawExp
 }
 
 func isExpired(data TokenAndExpiry) bool {
