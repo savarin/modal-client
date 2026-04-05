@@ -102,6 +102,21 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		ptyInfo = defaultSandboxPTYInfo()
 	}
 
+	for _, ports := range []struct {
+		name  string
+		ports []int
+	}{
+		{"EncryptedPorts", params.EncryptedPorts},
+		{"H2Ports", params.H2Ports},
+		{"UnencryptedPorts", params.UnencryptedPorts},
+	} {
+		for _, port := range ports.ports {
+			if port < 0 || port > 65535 {
+				return nil, fmt.Errorf("%s contains invalid port %d: must be in range [0, 65535]", ports.name, port)
+			}
+		}
+	}
+
 	openPorts := make([]*pb.PortSpec, 0)
 	for _, port := range params.EncryptedPorts {
 		openPorts = append(openPorts, pb.PortSpec_builder{

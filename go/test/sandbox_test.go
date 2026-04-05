@@ -828,6 +828,30 @@ func TestSandboxInvalidTimeouts(t *testing.T) {
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
 }
 
+func TestSandboxInvalidPorts(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := t.Context()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{EncryptedPorts: []int{-1}})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("invalid port"))
+
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{H2Ports: []int{70000}})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("invalid port"))
+
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{UnencryptedPorts: []int{-100}})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("invalid port"))
+}
+
 func TestSandboxExperimentalDocker(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
