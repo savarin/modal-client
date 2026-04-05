@@ -22,6 +22,22 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// CPUCores represents a validated positive CPU core count for resource requests.
+type CPUCores float64
+
+// NewCPUCores validates that the CPU value is positive and returns a typed value.
+func NewCPUCores(v float64) (CPUCores, error) {
+	if v <= 0 {
+		return 0, fmt.Errorf("the CPU request (%f) must be a positive number", v)
+	}
+	return CPUCores(v), nil
+}
+
+// MilliCPU converts to milliCPU (uint32) for proto construction.
+func (c CPUCores) MilliCPU() uint32 {
+	return uint32(1000 * float64(c))
+}
+
 // NetworkAccessMode encodes the three mutually exclusive network access states.
 // Using a typed enum prevents combining BlockNetwork=true with a non-empty CIDRAllowlist.
 type NetworkAccessMode int
@@ -252,10 +268,11 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		return nil, fmt.Errorf("must also specify non-zero CPU request when CPULimit is specified")
 	}
 	if params.CPU != 0 {
-		if params.CPU <= 0 {
-			return nil, fmt.Errorf("the CPU request (%f) must be a positive number", params.CPU)
+		cpu, err := NewCPUCores(params.CPU)
+		if err != nil {
+			return nil, err
 		}
-		v := uint32(1000 * params.CPU)
+		v := cpu.MilliCPU()
 		milliCPU = &v
 		if params.CPULimit > 0 {
 			if params.CPULimit < params.CPU {
