@@ -105,13 +105,18 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("internal error: did not receive auth token from server, please contact Modal support")
 	}
 
+	now := time.Now().Unix()
+	exp := m.decodeJWT(token)
 	var expiry int64
-	if exp := m.decodeJWT(token); exp > 0 {
-		expiry = exp
-	} else {
+	if exp <= 0 {
 		m.logger.WarnContext(ctx, "x-modal-auth-token does not contain exp field")
-		// We'll use the token, and set the expiry to 20 min from now.
-		expiry = time.Now().Unix() + DefaultExpiryOffset
+		expiry = now + DefaultExpiryOffset
+	} else if exp <= now {
+		m.logger.WarnContext(ctx, "x-modal-auth-token has expiry in the past, using default offset",
+			"exp", exp, "now", now)
+		expiry = now + DefaultExpiryOffset
+	} else {
+		expiry = exp
 	}
 
 	m.tokenAndExpiry.Store(&TokenAndExpiry{
