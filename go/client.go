@@ -141,6 +141,10 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		profile.Environment = params.Environment
 	}
 
+	if params.ControlPlaneClient == nil && (profile.TokenID == "" || profile.TokenSecret == "") {
+		return nil, fmt.Errorf("missing token_id or token_secret, please set in ~/.modal.toml, environment variables, or via NewClientWithOptions()")
+	}
+
 	var logger *slog.Logger
 	var err error
 
