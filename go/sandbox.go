@@ -151,10 +151,11 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 	}.Build()
 
 	secretIds := []string{}
-	for _, secret := range params.Secrets {
-		if secret != nil {
-			secretIds = append(secretIds, secret.SecretID)
+	for i, secret := range params.Secrets {
+		if secret == nil {
+			return nil, fmt.Errorf("Secrets slice contains nil entry at index %d", i)
 		}
+		secretIds = append(secretIds, secret.SecretID)
 	}
 
 	var networkAccess *pb.NetworkAccess
@@ -537,10 +538,11 @@ func buildTaskExecStartRequestProto(taskID, execID string, command []string, par
 	}
 
 	secretIds := []string{}
-	for _, secret := range params.Secrets {
-		if secret != nil {
-			secretIds = append(secretIds, secret.SecretID)
+	for i, secret := range params.Secrets {
+		if secret == nil {
+			return nil, fmt.Errorf("Secrets slice contains nil entry at index %d", i)
 		}
+		secretIds = append(secretIds, secret.SecretID)
 	}
 
 	var stdoutConfig pb.TaskExecStdoutConfig
