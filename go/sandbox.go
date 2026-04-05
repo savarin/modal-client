@@ -22,6 +22,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// PositiveMemory represents a validated positive memory value in MiB.
+type PositiveMemory int
+
+// NewPositiveMemory validates that the memory value is positive and returns a typed value.
+func NewPositiveMemory(v int) (PositiveMemory, error) {
+	if v <= 0 {
+		return 0, fmt.Errorf("the MemoryMiB request (%d) must be a positive number", v)
+	}
+	return PositiveMemory(v), nil
+}
+
 // CPUCores represents a validated positive CPU core count for resource requests.
 type CPUCores float64
 
@@ -288,10 +299,11 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		return nil, fmt.Errorf("must also specify non-zero MemoryMiB request when MemoryLimitMiB is specified")
 	}
 	if params.MemoryMiB != 0 {
-		if params.MemoryMiB <= 0 {
-			return nil, fmt.Errorf("the MemoryMiB request (%d) must be a positive number", params.MemoryMiB)
+		mem, err := NewPositiveMemory(params.MemoryMiB)
+		if err != nil {
+			return nil, err
 		}
-		memoryMb = uint32(params.MemoryMiB)
+		memoryMb = uint32(mem)
 		if params.MemoryLimitMiB > 0 {
 			if params.MemoryLimitMiB < params.MemoryMiB {
 				return nil, fmt.Errorf("the MemoryMiB request (%d) cannot be higher than MemoryLimitMiB (%d)", params.MemoryMiB, params.MemoryLimitMiB)
