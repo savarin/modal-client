@@ -79,6 +79,7 @@ type Client struct {
 	additionalUnaryInterceptors  []grpc.UnaryClientInterceptor
 	additionalStreamInterceptors []grpc.StreamClientInterceptor
 	mu                           sync.RWMutex
+	closeOnce                    sync.Once
 }
 
 // NewClient generates a new client with the default profile configuration read from environment variables and ~/.modal.toml.
@@ -229,27 +230,29 @@ func (c *Client) ipClient(ctx context.Context, serverURL string) (pb.ModalClient
 	return c.ipClients[serverURL], nil
 }
 
-// Close closes all gRPC connections.
+// Close closes all gRPC connections. Safe to call multiple times.
 func (c *Client) Close() {
-	ctx := context.Background()
-	c.logger.DebugContext(ctx, "Closing Modal client")
+	c.closeOnce.Do(func() {
+		ctx := context.Background()
+		c.logger.DebugContext(ctx, "Closing Modal client")
 
-	if c.cpClient != nil {
-		if err := c.cpClient.Close(); err != nil {
-			c.logger.WarnContext(ctx, "Failed to close control plane connection", "error", err)
+		if c.cpClient != nil {
+			if err := c.cpClient.Close(); err != nil {
+				c.logger.WarnContext(ctx, "Failed to close control plane connection", "error", err)
+			}
 		}
-	}
 
-	c.mu.Lock()
-	for serverURL, client := range c.ipClients {
-		if err := client.Close(); err != nil {
-			c.logger.WarnContext(ctx, "Failed to close input plane connection", "server_url", serverURL, "error", err)
+		c.mu.Lock()
+		for serverURL, client := range c.ipClients {
+			if err := client.Close(); err != nil {
+				c.logger.WarnContext(ctx, "Failed to close input plane connection", "server_url", serverURL, "error", err)
+			}
 		}
-	}
-	c.ipClients = map[string]*clientWithConn{}
-	c.mu.Unlock()
+		c.ipClients = map[string]*clientWithConn{}
+		c.mu.Unlock()
 
-	c.logger.DebugContext(ctx, "Modal client closed")
+		c.logger.DebugContext(ctx, "Modal client closed")
+	})
 }
 
 // Version returns the SDK version.
