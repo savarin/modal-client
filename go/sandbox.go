@@ -2,11 +2,13 @@ package modal
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"iter"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -83,6 +85,9 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 				ReadOnly:               volume.IsReadOnly(),
 			}.Build())
 		}
+		slices.SortFunc(volumeMounts, func(a, b *pb.VolumeMount) int {
+			return cmp.Compare(a.GetMountPath(), b.GetMountPath())
+		})
 	}
 
 	var cloudBucketMounts []*pb.CloudBucketMount
@@ -95,6 +100,9 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 			}
 			cloudBucketMounts = append(cloudBucketMounts, proto)
 		}
+		slices.SortFunc(cloudBucketMounts, func(a, b *pb.CloudBucketMount) int {
+			return cmp.Compare(a.GetMountPath(), b.GetMountPath())
+		})
 	}
 
 	var ptyInfo *pb.PTYInfo
