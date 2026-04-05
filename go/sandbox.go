@@ -201,12 +201,11 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", params.Timeout)
 	}
 	timeoutSecs := uint32(params.Timeout / time.Second)
-	// Ideally we would forbid an explicit zero Timeout, but we can't distinguish between the
-	// SandboxCreateParams{Timeout: 0} case that we'd like to warn about, and the SandboxCreateParams{} case
-	// where Timeout gets initialized to zero by default.
-	// Since Timeout=0 doesn't really make sense, we default to 5 minutes even if it's explicitly set to 0.
+	// Timeout=0 is ambiguous: could be explicit or the zero-value default.
+	// Default to 5 minutes either way, but warn for observability.
 	if timeoutSecs == 0 {
 		timeoutSecs = 300
+		slog.Warn("Timeout is zero, defaulting to 300 seconds")
 	}
 
 	var idleTimeoutSecs *uint32
